@@ -25,7 +25,7 @@ public class EvaluationDTO {
 
     private Integer weight;
 
-    private Integer bonusAndPenalty;
+    private Float bonusAndPenalty;
 
     private String commentGroup;
 
@@ -34,6 +34,8 @@ public class EvaluationDTO {
     private Integer workPoint = 0;
 
     private Float workGrade = 0f;
+
+    private String CommentPersonal;
 
     private List<CriteriaDTO> criteriaGradeList;
 

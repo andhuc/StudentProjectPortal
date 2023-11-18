@@ -4,18 +4,11 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import swp.studentprojectportal.model.Evaluation;
-import swp.studentprojectportal.model.EvaluationDTO;
-import swp.studentprojectportal.model.SubmitIssue;
-import swp.studentprojectportal.service.servicesimpl.EvaluationService;
-import swp.studentprojectportal.service.servicesimpl.SubmissionService;
-import swp.studentprojectportal.service.servicesimpl.SubmitIssueService;
+import swp.studentprojectportal.model.*;
+import swp.studentprojectportal.service.servicesimpl.*;
 import swp.studentprojectportal.utils.dto.Mapper;
 
 import java.net.http.HttpRequest;
@@ -30,9 +23,21 @@ public class AssignmentEvaluationsController {
     @Autowired
     SubmitIssueService submitIssueService;
 
-    @GetMapping("/evaluation")
+    @Autowired
+    SubmissionService submissionService;
+
+    @Autowired
+    SubmissionPersonalService submissionPersonalService;
+
+    @Autowired
+    ProjectService projectService;
+
+    @Autowired
+    MilestoneService milestoneService;
+
+    @GetMapping(value = "/submission/evaluate/{submissionId}")
     public String evaluationList(HttpSession session, Model model,
-                                @RequestParam(defaultValue = "-1") Integer submissionId
+                                @PathVariable Integer submissionId
     ) {
         List<Evaluation> evaluation =  evaluationService.getEvaluationBySubmissionId(submissionId);
 
@@ -43,35 +48,92 @@ public class AssignmentEvaluationsController {
         // Map evaluation to evaluationDTO
         List<EvaluationDTO> evaluationDTO = Mapper.evaluationMapper(evaluation);
 
+        // Set work point and work grade
         evaluationDTO.forEach(item -> {
             EvaluationDTO temp = submitIssueService.setWorkPoint(item);
             item.setWorkPoint(temp.getWorkPoint());
             item.setWorkGrade(temp.getWorkGrade());
         });
 
+        // Set bonus and comment personal
+        List<SubmissionPersonal> submissionPersonalList = submissionPersonalService.getAllSubmissionPersonalBySubmissionId(submissionId);
+        evaluationDTO.forEach(item -> {
+            submissionPersonalList.forEach(e -> {
+                if(e.getStudent().getId() == item.getStudentId()) {
+                    item.setBonusAndPenalty(e.getBonus());
+                    item.setCommentPersonal(e.getComment());
+                }
+            });
+        });
+
         // set atriibute
         model.addAttribute("submissionId", submissionId);
         model.addAttribute("evaluationDTO", evaluationDTO);
         model.addAttribute("submission", evaluation.get(0).getSubmission());
+
+        // Get project list and milestone list of mentor
+        User user = (User) session.getAttribute("user");
+//        List<Submission> submissionList = submissionService.findAllByProjectMentorId(user.getId());
+
+        List<Project> projectList = projectService.findAllByProjectMentorId(user.getId());
+        model.addAttribute("projectList", projectList);
+
+        List<Milestone> milestoneList = milestoneService.findAllByProjectMentor(user.getId());
+        model.addAttribute("milestoneList", milestoneList);
+
+        model.addAttribute("classList",projectList.stream().map(Project::getAclass).distinct().toList());
+        model.addAttribute("isStudent", false);
+
+
         return "project_mentor/submission/submissionEvaluations";
     }
 
     @PostMapping("/evaluation")
     public String evaluationUpdate(HttpSession session, Model model, WebRequest request, RedirectAttributes attributes) {
+        Float submissionMark = 0f;
+        String commentGroup = request.getParameter("commentGroup");
         String submissionId = request.getParameter("submissionId");
+
+        /*
+            Update comment group and submission mark
+         */
         String[] evalGrades = request.getParameterValues("evalGrade");
         String[] evalGradeId = request.getParameterValues("evalGradeId");
-        Float submissionMark = 0f;
+
+        // Update comment
+        try {
+            submissionService.updateComment(Integer.parseInt(submissionId), commentGroup);
+        }catch (Exception e) {
+            attributes.addFlashAttribute("emessage", "Update failed");
+            return "redirect:/project-mentor/submission/evaluate/" + submissionId;
+        }
+
         for (int i = 0; i < evalGradeId.length; i++) {
-            System.out.println(evalGradeId[i] + " " + evalGrades[i]);
             try {
                 evaluationService.updateEvaluation(Integer.parseInt(evalGradeId[i]), Float.parseFloat(evalGrades[i]));
             } catch (Exception e) {
                 attributes.addFlashAttribute("emessage", "Update failed");
-                return "redirect:/project-mentor/evaluation?submissionId=" + submissionId;
+                return "redirect:/project-mentor/submission/evaluate/" + submissionId;
+            }
+        }
+
+        /*
+            Update comment personal and bonus
+         */
+        String[] commentPersonal = request.getParameterValues("evalCommentPersonal");
+        String[] bonus = request.getParameterValues("evalBonusAndPenalty");
+        String[] studentId = request.getParameterValues("evalStudentId");
+
+        for (int i = 0; i < studentId.length; i++) {
+            try {
+//                System.out.println("studentId: " + studentId[i] + " bonus: " + bonus[i] + " comment: " + commentPersonal[i]);
+                submissionPersonalService.updateSubmissionPersonal(Integer.parseInt(submissionId), Integer.parseInt(studentId[i]), bonus[i], commentPersonal[i]);
+            } catch (Exception e) {
+                attributes.addFlashAttribute("emessage", "Update failed");
+                return "redirect:/project-mentor/submission/evaluate/" + submissionId;
             }
         }
         attributes.addFlashAttribute("smessage", "Update successfully");
-        return "redirect:/project-mentor/evaluation?submissionId=" + submissionId;
+        return "redirect:/project-mentor/submission/evaluate/" + submissionId;
     }
 }

@@ -44,6 +44,10 @@
 <script th:src="@{https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js}" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
 
 <style>
+  table.scroll {
+    white-space: nowrap;
+  }
+
   input::-webkit-outer-spin-button,
   input::-webkit-inner-spin-button {
     /* display: none; <- Crashes Chrome on hover */
@@ -90,6 +94,7 @@
   }
 
   #checkboxes label {
+    user-select: none;
     display: block;
     margin-left: 10px;
   }
@@ -171,11 +176,12 @@
     </div>
     <div class="container-fluid">
       <div class="layout-specing" style="padding: 35px 14px 24px !important;">
-        <form action="/project-mentor/evaluation" method="post">
-        <input type="hidden" name="submissionId" th:value="${submissionId}">
+        <form action="/project-mentor/evaluation" id="formsubmit" method="post">
+          <input type="hidden" name="submissionId" th:value="${submissionId}">
+          <input type="hidden" name="createBy" th:value="${submission.getProject().getProjectMentor().fullName}">
         <div class="row px-4">
           <div class="col-xl-5 col-md-6">
-            <h3 style="margin-top: -14px;margin-bottom: 20px;" >Assignment Evaluations</h3>
+            <h1 style="margin-top: -14px;margin-bottom: 20px;" >Assignment Evaluations</h1>
 <!--            <ol class="breadcrumb mb-2" style="background-color: #f8f9fc;">-->
 <!--              <li class="breadcrumb-item"><a href="/home">Dashboard</a></li>-->
 <!--              <li class="breadcrumb-item" th:if="${session.user.setting.id==3}"><a href="/subject-manager/class">Class List</a></li>-->
@@ -189,23 +195,54 @@
               <!-- filter -->
             <div class="col-md-6">
               <div class="row">
-                <div class="col-md-6">
-                  <select name="milestone" class="form-select" id="a">
-                    <option value="-1" >bcd</option>
-                    <option value="2" >123</option>
+                <div class="col-md-3">
+                  <select name="milestone" class="form-select" id="classFilter" onchange="classFilterFunction()" >
+                    <option value="1">None</option>
+                    <th:block  th:each="class : ${classList}">
+                      <option th:value="${class.id}" th:text=" ${class.className}"></option>
+                    </th:block>
                   </select>
                 </div>
 
-                <div class="col-md-6">
-                <select name="milestone" class="form-select" id="milestone">
-                  <option value="-1" >All Milestones</option>
-                  <option value="2" >123</option>
-                </select>
+                <div class="col-3">
+                  <select class="form-select" id="projectFilter">
+                    <th:block th:each="project : ${projectList}">
+                      <option class="project-option" th:data-class-id="${project.getAclass().id}" value="${project.id}" th:text="${project.groupName}" hidden=""></option>
+                    </th:block>
+                  </select>
                 </div>
+
+
+                <div class="col-md-6">
+                  <select name="milestone" class="form-select" id="a">
+                    <th:block  th:each="milestone : ${milestoneList}">
+                      <option th:value="${milestone.id}" th:text="${milestone.title}" >All Assignments</option>
+                    </th:block>
+                  </select>
+                </div>
+
               </div>
 
+              <script>
+                const classFilterFunction = () => {
+                  var classFilter = document.getElementById("classFilter");
+                  var classId = classFilter.value;
+                  var option = document.getElementsByClassName("project-option");
+
+                  Array.from(option).forEach(function (item) {
+                    console.log(item.dataset.classId);
+                    if (item.dataset.classId === classId) {
+                      item.hidden = false;
+                    } else {
+                      item.hidden = true;
+                    }
+                  });
+                }
+
+              </script>
+
               <div class="row" style="margin-top: 5px">
-                  <div class="col-md-6" style="padding-left: 0px">
+                  <div class="col-md-6" >
                     <div class="multiselect">
                       <div class="selectBox" onclick="showCheckboxes()">
                         <select class="form-select">
@@ -214,12 +251,11 @@
                         <div class="overSelect"></div>
                       </div>
                       <div id="checkboxes">
-                        <label for="one">
-                          <input type="checkbox" id="one" />First checkbox</label>
-                        <label for="two">
-                          <input type="checkbox" id="two" />Second checkbox</label>
-                        <label for="three">
-                          <input type="checkbox" id="three" />Third checkbox</label>
+                        <th:block  th:each="item : ${evaluationDTO.get(0).getCriteriaGradeList()}">
+                          <label th:for="${item.criteriaName}">
+                            <input type="checkbox" th:id="${item.criteriaName}" th:text="${item.criteriaName}" onchange="updateEvalDisplay(this)" checked />
+                          </label>
+                        </th:block>
                       </div>
                     </div>
                   </div>
@@ -234,32 +270,35 @@
                 <div class="view">
                   <div class="row">
 
-                    <div class="col-md-3"></div>
-                    <div class="col-md-3" style="padding: 0px 3px">
-                    </div>
-                    <div class="col-md-3" style="padding: 0px 3px">
-                      <button type="button" onclick="editMark()" class="btn btn-primary" style="width: 160px">Edit</button>
-                    </div>
-                    <div class="col-md-3" style="padding: 0px 3px">
-                      <button type="button" class="btn btn-warning" style="width: 160px; margin-left: 7px;">Copy Group Evals</button>
-                    </div>
+                    <div class="col-md-4" style="padding: 0px 3px"></div>
+                      <div class="col-md-4" style="padding: 0px 3px">
+                        <th:block th:if="${!isStudent}">
+                        <button type="button" onclick="editMark()" class="btn btn-primary" style="width: 160px">Edit</button>
+                        </th:block>
+                      </div>
+                      <div class="col-md-4" style="padding: 0px 3px">
+                        <th:block th:if="${!isStudent}">
+                        <button type="button" class="btn btn-warning" style="width: 160px; margin-left: 7px;">Copy Group Evals</button>
+                        </th:block>
+                      </div>
                   </div>
                 </div><!--end col-->
 
                 <div class="edit" hidden="">
                     <div class="row">
 
-                      <div class="col-md-3" style="padding: 0px 3px">
-                        <button type="submit" class="btn btn-primary" style="width: 160px;">Save Changes</button>
+                      <div class="col-md-4" style="padding: 0px 3px">
+                        <button type="button" id="submitButton" class="btn btn-primary" style="width: 160px;">Save Changes</button>
                       </div>
-                      <div class="col-md-3" style="padding: 0px 3px">
-                        <button onclick="reverseChange()" class="btn btn-secondary" style="width: 160px; margin-left: 7px;">Reverse Changes</button>
+                      <div class="col-md-4" style="padding: 0px 3px">
+                        <a onclick="reverseChange()" class="btn btn-secondary" style="width: 160px; margin-left: 7px;">Reverse Changes</a>
                       </div>
-                      <div class="col-md-3" style="padding: 0px 3px">
+                      <div class="col-md-4" style="padding: 0px 3px">
                         <button type="button" class="btn btn-warning" style="width: 160px; margin-left: 7px;">Copy Group Evals</button>
                       </div>
                     </div>
                   </div><!--end col-->
+
               </div>
 
           </div><!--end row-->
@@ -270,7 +309,7 @@
           <div class="card mb-4">
             <div class="card-body">
 
-              <table id="myTable" class="display">
+              <table id="myTable" class="display scroll">
                 <thead>
                 <tr>
                   <th>Student</th>
@@ -281,7 +320,7 @@
                   <th>B/P</th>
                   <th>Comments</th>
                   <th:block  th:each="evalGrade : ${evaluationDTO.get(0).getCriteriaGradeList()}">
-                    <th th:text="${evalGrade.criteriaName}"></th>
+                      <th th:text="${evalGrade.criteriaName}" th:name="${evalGrade.criteriaName}"></th>
                   </th:block>
                 </tr>
                 </thead>
@@ -294,11 +333,11 @@
                   <td></td>
                   <td></td>
                   <td>
-                    <div class="view" >
+                    <div class="view view-value" >
                       <label th:text="${submission.comment}"></label>
                     </div>
-                    <div class="edit" hidden="hidden">
-                      <input type="text" name="commentGroup" th:value="${submission.comment}" style="width: 400px" >
+                    <div class="edit edit-value" hidden="hidden">
+                      <input type="text" name="commentGroup" th:value="${submission.comment}" style="width: 300px" >
                     </div>
                   </td>
                   <th:block  th:each="evalGrade : ${evaluationDTO.get(0).getCriteriaGradeList()}">
@@ -311,17 +350,32 @@
                   <td th:text="${item.getGradeSubmission()}"></td>
                   <td th:text="${item.workGrade}"></td>
                   <td th:text="${item.workPoint}"></td>
-                  <td></td>
-                  <td></td>
+                  <td>
+                    <div class="view view-value " >
+                      <label th:text="${item.bonusAndPenalty}"></label>
+                    </div>
+                    <div class="edit edit-value " hidden="hidden">
+                      <input type="number" step=0.1 oninput="checkValueBonus(this)" name="evalBonusAndPenalty" th:value="${item.bonusAndPenalty}" style="width: 37px" >
+                    </div>
+                  </td>
+                  <td>
+                    <div class="view view-value " >
+                      <label th:text="${item.commentPersonal}"></label>
+                    </div>
+                    <div class="edit edit-value " hidden="hidden">
+                      <input type="text" name="evalCommentPersonal" th:value="${item.commentPersonal}" style="width: 300px" >
+                      <input type="hidden" name="evalStudentId" th:value="${item.studentId}">
+                    </div>
+                  </td>
                   <th:block  th:each="evalGrade : ${item.getCriteriaGradeList()}">
-                    <td>
-                      <div class="view" >
+                    <td th:name="${evalGrade.criteriaName}">
+                      <div class="view view-value " >
                         <label th:text="${evalGrade.grade}"></label>
                       </div>
-                      <div class="edit" hidden="hidden">
-                        <input type="number" max="10" min="0" name="evalGrade" th:value="${evalGrade.grade}" style="width: 50px" >
+                      <div class="edit edit-value " hidden="hidden">
+                        <input type="number" step=0.1 oninput="checkValue(this)" name="evalGrade" th:value="${evalGrade.grade}" style="width: 37px" >
                         <input type="hidden" name="evalGradeId" th:value="${evalGrade.criteriaGradeId}">
-                        <label th:attr="onclick='showComment(\'' + ${evalGrade.comment} + '\', \'' + ${evalGrade.getCriteriaName()} + '\')'" >...</label>
+                        <label th:attr="onclick='showComment(\'' + ${evalGrade.comment} + '\', \'' + ${evalGrade.getCriteriaName()} + '\', ' + ${evalGrade.getCriteriaGradeId()} + ')'       " >...</label>
                       </div>
                     </td>
                   </th:block>
@@ -351,11 +405,12 @@
                   <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                   </button></div>
+                <input type="hidden"  id="id-modal" >
                 <textarea type="text" rows="3"  id="comment-modal" name="description" class="form-control"></textarea>
               </div>
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary">Save changes</button>
+                <button type="button" onclick="updateCommentEvaluation()" class="btn btn-primary">Save changes</button>
               </div>
             </div>
           </div>
@@ -363,7 +418,6 @@
           <!-- End Modal -->
       </div>
     </div><!--end container-->
-    <div th:replace="~{footer}"></div>
 
     <!-- End -->
   </main>
@@ -395,6 +449,46 @@
   });
 </script>
 
+<script th:script="${@nodeUrl} + '/socket.io/socket.io.js'"></script>
+
+<script>
+  // const socket = io( '[[${@nodeUrl}]]' );
+
+  const submitButton = document.getElementById("submitButton");
+  // add event onclick
+  submitButton.addEventListener("click", function () {
+    var studentIdList = '';
+    var message = "Mentor has updated your evaluation!";
+    const idSubmission = document.getElementsByName("submissionId")[0].value;
+    var href = "/student/submission/evaluate/" + idSubmission;
+    const createBy = document.getElementsByName("createBy")[0].value;
+
+
+    var evalStudentIdList = document.getElementsByName('evalStudentId');
+    evalStudentIdList.forEach(
+            function (item) {
+                studentIdList += item.value + ",";
+            }
+    );
+
+    if(studentIdList.at(-1) === ',') {
+      studentIdList = studentIdList.slice(0, -1);
+    }
+
+    const jsonSendData = {
+      "listUserId": studentIdList,
+      "createdBy": createBy,
+      "message": message,
+      "href": href
+    };
+
+    // socket.emit('noti-evaluated', jsonSendData);
+
+    const formsubmit = document.getElementById("formsubmit");
+    formsubmit.submit();
+  });
+</script>
+
 <script>
   function editMark() {
     var view = document.getElementsByClassName("view");
@@ -407,25 +501,96 @@
     }
   }
   function reverseChange() {
-    alert(0)
+    // Find all "view-value" elements
+    var viewValueElements = document.querySelectorAll(".view-value");
+
+// Loop through the "view-value" elements
+    viewValueElements.forEach(function(viewValueElement) {
+      var viewValue = viewValueElement.querySelector("label");
+      var editValueElement = viewValueElement.nextElementSibling;
+      var inputField = editValueElement.getElementsByTagName("input")[0];
+
+      inputField.value = viewValue.innerHTML ;
+    });
+  }
+
+  function updateEvalDisplay(checkbox) {
+    // Get the ID and state of the checkbox
+    const checkboxId = checkbox.id;
+    const isChecked = checkbox.checked;
+
+    // Log the checkbox ID and its state
+    console.log(`Checkbox with ID "${checkboxId}" is checked: ${isChecked}`);
+    var evalColumn = document.getElementsByName(checkboxId);
+    if(isChecked) {
+      console.log(2)
+      for(var i = 0; i < evalColumn.length; i++){
+        evalColumn[i].hidden = false;
+      }
+    }else {
+          console.log(1)
+        for(var i = 0; i < evalColumn.length; i++){
+            evalColumn[i].hidden = true;
+        }
+    }
   }
 
 </script>
 
 
 <script>
-  function showComment(comment, criteria) {
+  function showComment(comment, criteria, criteriaId) {
     var btnComment = document.getElementById("btn-modal-comment");
     var titleComment = document.getElementById("exampleModalLongTitle");
     var contentComment = document.getElementById("comment-modal");
+    var id = document.getElementById("id-modal");
     //
     // labelComment.innerHTML = `Comments for Criteria ${criteria} Grading`;
     // commentModal.value = comment;
 
     titleComment.innerHTML = `Comments for Criteria ${criteria} Grading ${comment}`;
-    contentComment.innerHTML = comment;
+    contentComment.value = comment;
+    id.value = criteriaId;
 
     btnComment.click();
+  }
+
+  function updateCommentEvaluation() {
+    var contentComment = document.getElementById("comment-modal").value;
+    var id = document.getElementById("id-modal").value;
+
+    var endPoint = "/api/v1/evaluation/update?evaluationId=" + id + "&comment=" + contentComment;
+
+    fetch(endPoint).then(response => {
+      notify('success', 'Successfully!', 'Update comment successfully!');
+
+    });
+  }
+
+  // check input is > 0 and < 10
+
+  function checkValue(input) {
+    const min = 0;
+    const max = 10;
+    const value = parseFloat(input.value);
+
+    if (value < min) {
+      input.value = min;
+    } else if (value > max) {
+      input.value = max;
+    }
+  }
+
+  function checkValueBonus(input) {
+    const min = -10;
+    const max = 10;
+    const value = parseFloat(input.value);
+
+    if (value < min) {
+      input.value = min;
+    } else if (value > max) {
+      input.value = max;
+    }
   }
 </script>
 
