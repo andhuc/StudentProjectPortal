@@ -79,11 +79,11 @@
                                 ⚙️Setting
                             </button>
                             <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                <button class="dropdown-item mt-3 btn-primary rounded" data-toggle="modal" data-target="#addProject">Add new project</button>
-                                <a class="dropdown-item mt-3 btn-primary rounded" th:href="'../arrange/' + ${class.id}" >Arrange members</a>
-                                <button class="dropdown-item mt-3 btn-secondary rounded" data-toggle="modal" data-target="#freezeProject">Freeze Projects</button>
-                                <a class="dropdown-item mt-3 rounded" th:href="'/api/v1/export/studentClass/' + ${class.id}" target="_blank" style="background: #0f7d49; color: white">Export</a>
-                                <button class="dropdown-item mt-3 rounded" onclick="showModal(event)" style="background: #0f5132;color: white">Import</button>
+                                <button class="dropdown-item mt-3 btn-primary rounded p-2" data-toggle="modal" data-target="#addProject">Add new project</button>
+                                <a class="dropdown-item mt-3 btn-primary rounded p-2" th:href="'../arrange/' + ${class.id}" >Arrange members</a>
+                                <button class="dropdown-item mt-3 btn-secondary rounded p-2" data-toggle="modal" data-target="#freezeProject">Freeze Projects</button>
+                                <a class="dropdown-item mt-3 rounded p-2" th:href="'/api/v1/export/studentClass/' + ${class.id}" target="_blank" style="background: #0f7d49; color: white">Export</a>
+                                <button class="dropdown-item mt-3 rounded p-2" onclick="showModal(event)" style="background: #0f5132;color: white">Import</button>
                             </div>
                         </div>
 

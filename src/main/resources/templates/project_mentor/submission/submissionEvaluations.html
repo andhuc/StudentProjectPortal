@@ -452,7 +452,7 @@
 <script th:script="${@nodeUrl} + '/socket.io/socket.io.js'"></script>
 
 <script>
-  const socket = io( '[[${@nodeUrl}]]' );
+  // const socket = io( '[[${@nodeUrl}]]' );
 
   const submitButton = document.getElementById("submitButton");
   // add event onclick
@@ -482,7 +482,7 @@
       "href": href
     };
 
-    socket.emit('noti-evaluated', jsonSendData);
+    // socket.emit('noti-evaluated', jsonSendData);
 
     const formsubmit = document.getElementById("formsubmit");
     formsubmit.submit();
